@@ -1,3 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
+import { subDays } from 'date-fns'
+import { useMemo, useState } from 'react'
+import { DateRange } from 'react-day-picker'
 import {
   CartesianGrid,
   Line,
@@ -9,42 +13,67 @@ import {
 } from 'recharts'
 import colors from 'tailwindcss/colors'
 
+import { getDailyRevenueInPeriod } from '@/api/get-daily-revenue-in-period'
 import { useTheme } from '@/components/theme/theme-provider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { Label } from '@/components/ui/label'
 
-const data = [
-  {
-    date: '10/12',
-    revenue: 4000,
-  },
-  {
-    date: '11/12',
-    revenue: 200,
-  },
-  {
-    date: '12/12',
-    revenue: 900,
-  },
-  {
-    date: '13/12',
-    revenue: 3000,
-  },
-  {
-    date: '14/12',
-    revenue: 2050,
-  },
-  {
-    date: '15/12',
-    revenue: 100,
-  },
-  {
-    date: '16/12',
-    revenue: 300,
-  },
-]
+// const data = [
+//   {
+//     date: '10/12',
+//     revenue: 4000,
+//   },
+//   {
+//     date: '11/12',
+//     revenue: 200,
+//   },
+//   {
+//     date: '12/12',
+//     revenue: 900,
+//   },
+//   {
+//     date: '13/12',
+//     revenue: 3000,
+//   },
+//   {
+//     date: '14/12',
+//     revenue: 2050,
+//   },
+//   {
+//     date: '15/12',
+//     revenue: 100,
+//   },
+//   {
+//     date: '16/12',
+//     revenue: 300,
+//   },
+// ]
 
 export function RevenueChart() {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 7),
+    to: new Date(),
+  })
+  const { data: dailyRevenueInPeriod } = useQuery({
+    queryKey: ['metrics', 'daily-revenue-in-peirod', dateRange],
+    queryFn: () =>
+      getDailyRevenueInPeriod({
+        from: dateRange?.from,
+        to: dateRange?.to,
+      }),
+  })
+
   const { theme } = useTheme()
+
+  const chartData = useMemo(() => {
+    return dailyRevenueInPeriod?.map((chartItem) => {
+      return {
+        date: chartItem.date,
+        receipt: chartItem.receipt / 100,
+      }
+    })
+  }, [dailyRevenueInPeriod])
 
   return (
     <Card className="col-span-6">
@@ -55,48 +84,123 @@ export function RevenueChart() {
           </CardTitle>
           <CardTitle>Receita diária no período</CardTitle>
         </div>
+
+        <div className="flex flex-col items-center gap-3 md:flex-row">
+          <Label>Período</Label>
+          <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+        </div>
       </CardHeader>
 
       <CardContent>
-        <ResponsiveContainer width="100%" height={240}>
-          <LineChart data={data} style={{ fontSize: 12 }}>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: colors.transparent[900],
-                color: theme === 'dark' ? colors.white : colors.zinc[900],
-                border: 'none',
-              }}
-            />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              dy={16}
-              stroke="#888"
-            />
-            <YAxis
-              stroke="#888"
-              axisLine={false}
-              tickLine={false}
-              width={80}
-              tickFormatter={(value: number) =>
-                value.toLocaleString('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                })
-              }
-            />
+        {chartData && (
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={chartData} style={{ fontSize: 12 }}>
+              <Tooltip
+                labelFormatter={(value: string) => `Dia: ${value}`}
+                contentStyle={{
+                  backgroundColor: colors.transparent[900],
+                  color: theme === 'dark' ? colors.white : colors.zinc[900],
+                  border: 'none',
+                }}
+                content={({ label, payload }) => {
+                  if (!payload || payload.length === 0) return null
+                  const value = payload[0].value
 
-            <CartesianGrid vertical={false} className="stroke-muted" />
+                  return (
+                    <div>
+                      <p
+                        style={{
+                          color:
+                            theme === 'dark'
+                              ? colors.rose[500]
+                              : colors.rose[700],
+                          fontWeight: 900,
+                          fontSize: 16,
+                        }}
+                      >
+                        Dia:{' '}
+                        <span
+                          style={{
+                            color:
+                              theme === 'dark'
+                                ? colors.white
+                                : colors.zinc[900],
+                            fontWeight: 900,
+                            fontSize: 16,
+                          }}
+                        >
+                          {label}
+                        </span>
+                      </p>
 
-            <Line
-              type="linear"
-              strokeWidth={2}
-              dataKey="revenue"
-              stroke={colors.rose[600]}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+                      <p
+                        style={{
+                          color:
+                            theme === 'dark'
+                              ? colors.emerald[500]
+                              : colors.emerald[700],
+                          fontWeight: 900,
+                          fontSize: 16,
+                        }}
+                      >
+                        Receita:{' '}
+                        <span
+                          style={{
+                            color:
+                              theme === 'dark'
+                                ? colors.white
+                                : colors.zinc[900],
+                            fontWeight: 900,
+                            fontSize: 16,
+                          }}
+                        >
+                          {value?.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          })}
+                        </span>
+                      </p>
+                    </div>
+                  )
+                }}
+              />
+
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                dy={16}
+                stroke="#888"
+              />
+              <YAxis
+                stroke="#888"
+                axisLine={false}
+                tickLine={false}
+                width={80}
+                tickFormatter={(value: number) =>
+                  value.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  })
+                }
+              />
+
+              <CartesianGrid vertical={false} className="stroke-muted" />
+
+              <Line
+                type="linear"
+                strokeWidth={2}
+                dataKey="receipt"
+                label={{
+                  position: 'top',
+                  dy: -10,
+                  fill: theme === 'dark' ? colors.white : colors.zinc[900],
+                }}
+                stroke={colors.rose[600]}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   )
