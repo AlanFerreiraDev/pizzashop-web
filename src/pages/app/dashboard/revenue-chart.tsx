@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
+import { Loader2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DateRange } from 'react-day-picker'
 import {
@@ -67,6 +68,7 @@ export function RevenueChart() {
   const { theme } = useTheme()
 
   const chartData = useMemo(() => {
+    console.log(dailyRevenueInPeriod)
     return dailyRevenueInPeriod?.map((chartItem) => {
       return {
         date: chartItem.date,
@@ -77,7 +79,7 @@ export function RevenueChart() {
 
   return (
     <Card className="col-span-6">
-      <CardHeader className="flex-row items-center justify-between pb-8">
+      <CardHeader className="flex-col items-center justify-between pb-8 md:flex-row">
         <div className="space-y-1">
           <CardTitle className="text-base font-medium">
             Receita no período
@@ -92,7 +94,7 @@ export function RevenueChart() {
       </CardHeader>
 
       <CardContent>
-        {chartData && (
+        {chartData ? (
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={chartData} style={{ fontSize: 12 }}>
               <Tooltip
@@ -200,6 +202,17 @@ export function RevenueChart() {
               />
             </LineChart>
           </ResponsiveContainer>
+        ) : (
+          <div className="flex h-[240px] w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {chartData && chartData.length === 0 && (
+          <h1>
+            Não existem dados para esse período, tente novamente com outro
+            período de datas!
+          </h1>
         )}
       </CardContent>
     </Card>
